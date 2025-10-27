@@ -141,6 +141,17 @@ extra_javascript:
 
 nav:
   - Home: index.md
+  - Microservices:
+    - Account: ./account.md
+    - Account Service: ./account.service.md
+    - Auth: ./auth.md
+    - Auth Service: ./auth.service.md
+    - Exchange Service: ./exchange.service.md
+    - Gateway Service: ./gateway.service.md
+    - Order: ./order.md
+    - Order Service: ./order.service.md
+    - Product: ./product.md
+    - Product Service: ./product.service.md
   - This documentation: ./thisdocumentation/index.md
   - Roteiros:
     - Roteiro 1: ./roteiro1/index.md
