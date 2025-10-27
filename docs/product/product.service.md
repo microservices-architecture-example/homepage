@@ -1,6 +1,6 @@
 # Product Service
 
-This is the implementation of the Product service. It handles the business logic for managing products.
+This is the implementation of the Product service. It handles the business logic for managing products, including creation, retrieval, and deletion.
 
 ## File Structure
 
@@ -20,116 +20,26 @@ flowchart TD
     G --> M(ProductResource.java)
     G --> N(ProductService.java)
     D --> O(resources)
-    O --> P(application.yml)
-    O --> Q(db)
-    Q --> R(migration)
-    R --> S(V2025.08.29.001__create_schema.sql)
-    R --> T(V2025.08.29.002__create_table_product.sql)
+    O --> P(application.properties)
 ```
+
+## Business Logic
+
+The `ProductService` class contains the core business logic for the application. Here are the key operations:
+
+- **`create(Product product)`**: Validates that `name`, `price`, and `unit` are not null. It also checks if a product with the same name already exists to prevent duplicates. If all checks pass, it saves the new product to the database.
+- **`findAll()`**: Retrieves all products from the database.
+- **`findById(String id)`**: Finds a single product by its ID.
+- **`findByName(String name)`**: Performs a search for products whose names contain the given search string.
+- **`delete(String id)`**: Deletes a product by its ID, throwing an exception if the product does not exist.
 
 ## Source Code
-
-### pom.xml
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.5</version>
-		<relativePath/>
-	</parent>
-
-	<groupId>store</groupId>
-	<artifactId>product-service</artifactId>
-	<version>1.0.0</version>
-	
-	<properties>
-		<java.version>21</java.version>
-		<spring-cloud.version>2025.0.0</spring-cloud.version>
-		<maven.compiler.proc>full</maven.compiler.proc>
-	</properties>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-	    </dependency>
-
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>product</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
-	    </dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-database-postgresql</artifactId>
-		</dependency>
-
-
-	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-dependencies</artifactId>
-			<version>${spring-cloud.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
-
-</project>
-```
 
 ### ProductService.java
 
 ```java
 package store.product;
+
 
 import java.util.List;
 import java.util.stream.StreamSupport;
@@ -139,7 +49,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-
 @Service
 public class ProductService {
 
@@ -147,39 +56,60 @@ public class ProductService {
     private ProductRepository productRepository;
 
     public Product create(Product product) {
-        if (product.name() == null || product.name().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product name is mandatory.");
+        if (null == product.name()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Name is mandatory!"
+            );
+        }
+        // clean special caracters
+        product.name(product.name().trim());
+
+        if (null == product.price()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Price is mandatory!"
+            );
         }
 
-        if (product.price() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product price is mandatory.");
+        if (null == product.unit()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Unit is mandatory!"
+            );
         }
 
-        if (productRepository.findByName(product.name()) != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product name already registered.");
+        // if not Optional.empty
+        if (productRepository.findByName(product.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Name already have been registered!"
+            );
         }
 
-        ProductModel savedModel = productRepository.save(new ProductModel(product));
-        return savedModel.to();
+        return productRepository.save(
+            new ProductModel(product)
+        ).to();
     }
 
     public List<Product> findAll() {
-        return StreamSupport.stream(productRepository.findAll().spliterator(), false)
-                .map(ProductModel::to)
-                .toList();
+        return StreamSupport.stream(
+            productRepository.findAll().spliterator(), false)
+            .map(ProductModel::to)
+            .toList();
     }
 
     public Product findById(String id) {
-        return productRepository.findById(id)
-                .map(ProductModel::to)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found."));
+        return productRepository.findById(id).map(ProductModel::to).orElse(null);
+    }
+
+    public List<Product> findByName(String name) {
+        return StreamSupport.stream(
+            productRepository.findByNameContaining(name).spliterator(), false)
+            .map(ProductModel::to)
+            .toList();
     }
 
     public void delete(String id) {
-        if (!productRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found.");
-        }
-        productRepository.deleteById(id);
+        productRepository.delete(productRepository.findById(id).orElseThrow(() ->
+            new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found!")
+        ));
     }
 }
 ```

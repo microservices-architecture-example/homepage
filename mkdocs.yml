@@ -142,21 +142,21 @@ extra_javascript:
 nav:
   - Home: index.md
   - Microservices:
-    - Account: account/account.md
-    - Account Service: account/account.service.md
-    - Auth: auth/auth.md
-    - Auth Service: auth/auth.service.md
-    - Exchange Service: exchange/exchange.service.md
-    - Gateway Service: gateway/gateway.service.md
-    - Order: order/order.md
-    - Order Service: order/order.service.md
-    - Product: product/product.md
-    - Product Service: product/product.service.md
-  - This documentation: thisdocumentation/index.md
-  - Roteiros:
-    - Roteiro 1: roteiro1/index.md
-    - Roteiro 2: roteiro2/index.md
-    - Roteiro 3: roteiro3/index.md
-    - Roteiro 4: roteiro4/index.md
-    - Notebook 1: notebook1/ex1_data.ipynb
+    - Account: 
+      - Account: account/account.md
+      - Account Service: account/account.service.md
+    - Product:
+      - Product: product/product.md
+      - Product Service: product/product.service.md
+    - Order:
+      - Order: order/order.md
+      - Order Service: order/order.service.md
+    - Auth:
+      - Auth: auth/auth.md
+      - Auth Service: auth/auth.service.md
+    - Gateway:
+      - Gateway Service: gateway/gateway.service.md
+    - Exchange:
+      - Exchange Service: exchange/exchange.service.md
+
   - Projeto: projeto/index.md
