@@ -1,9 +1,5 @@
 # Documentação dos Microserviços
 
-## Equipe de desenvolvedores
-
-- Luigi Carmona de Miranda Lopes
-
 ## Estrutura atual dos microserviços
 
 ``` mermaid
