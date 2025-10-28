@@ -1,197 +1,279 @@
 # Account API
 
-The `account` API defines the contract for interacting with the account service. It's an interface used by other services, like the gateway, to communicate with the account management backend. It uses OpenFeign for declarative REST client creation.
+A **Account API** é responsável pela gestão das contas de usuário no domínio `store`.  
+Ela realiza operações de cadastro, consulta, atualização e exclusão de contas, servindo como base para autenticação e relacionamento entre os demais serviços (auth, order, product, etc.).
 
-```mermaid
+!!! info "Trusted layer e segurança"
+    Toda requisição externa entra pelo **gateway**.  
+    As rotas `/account/**` são **protegidas**: é obrigatório enviar `Authorization: Bearer <jwt>`.
+
+---
+
+## Visão geral
+
+- **Interface (`account`)**: define o contrato (DTOs e Feign) consumido por outros módulos/fronts.  
+- **Service (`account.service`)**: implementação REST, regras de negócio, persistência (JPA), e migrações (Flyway).  
+
+``` mermaid
+classDiagram
+    namespace account {
+        class AccountController {
+            +create(AccountIn accountIn): AccountOut
+            +delete(String id): void
+            +findAll(): List<AccountOut>
+            +findById(String id): AccountOut
+        }
+        class AccountIn {
+            -String name
+            -String email
+            -String password
+        }
+        class AccountOut {
+            -String id
+            -String name
+            -String email
+        }
+    }
+    namespace account.service {
+        class AccountResource {
+            +create(AccountIn accountIn): AccountOut
+            +delete(String id): void
+            +findAll(): List<AccountOut>
+            +findById(String id): AccountOut
+        }
+        class AccountService {
+            +create(AccountIn accountIn): AccountOut
+            +delete(String id): void
+            +findAll(): List<AccountOut>
+            +findById(String id): AccountOut
+        }
+        class AccountRepository {
+            +create(AccountIn accountIn): AccountOut
+            +delete(String id): void
+            +findAll(): List<AccountOut>
+            +findById(String id): AccountOut
+        }
+        class Account {
+            -String id
+            -String name
+            -String email
+            -String password
+            -String sha256
+        }
+        class AccountModel {
+            +create(AccountIn accountIn): AccountOut
+            +delete(String id): void
+            +findAll(): List<AccountOut>
+            +findById(String id): AccountOut
+        }
+    }
+    <<Interface>> AccountController
+    AccountController ..> AccountIn
+    AccountController ..> AccountOut
+
+    <<Interface>> AccountRepository
+    AccountController <|-- AccountResource
+    AccountResource *-- AccountService
+    AccountService *-- AccountRepository
+    AccountService ..> Account
+    AccountService ..> AccountModel
+    AccountRepository ..> AccountModel
+```
+
+## Estrutura da requisição
+
+``` mermaid
 flowchart LR
     subgraph api [Trusted Layer]
         direction TB
-        gateway --> auth
-        gateway --> account:::red
-        auth --> account
+        account e3@==> db@{ shape: cyl, label: "Database" }
     end
-    internet -->|request| gateway
+    internet e1@==>|request| account:::red
+    e1@{ animate: true }
+    e3@{ animate: true }
     classDef red fill:#fcc
-    click account "#account-api" "Account API"
 ```
 
-## Endpoints
+## Account
 
-The API exposes the following endpoints:
-
-!!! info "POST /account"
-    Creates a new user account.
-
-    === "Request"
-        ```json
-        {
-          "name": "John Doe",
-          "email": "john.doe@example.com",
-          "password": "password123"
-        }
-        ```
-
-    === "Response (201 Created)"
-        ```json
-        {
-          "id": "generated-uuid",
-          "name": "John Doe",
-          "email": "john.doe@example.com",
-          "role": "USER"
-        }
-        ```
-
----
-
-!!! info "POST /account/login"
-    Authenticates a user and returns their details.
-
-    === "Request"
-        ```json
-        {
-          "email": "john.doe@example.com",
-          "password": "password123"
-        }
-        ```
-
-    === "Response (200 OK)"
-        ```json
-        {
-          "id": "user-uuid",
-          "name": "John Doe",
-          "email": "john.doe@example.com",
-          "role": "USER"
-        }
-        ```
-
----
-
-!!! info "GET /account"
-    Retrieves a list of all user accounts.
-
-    === "Response (200 OK)"
-        ```json
-        [
-          {
-            "id": "user-uuid-1",
-            "name": "John Doe",
-            "email": "john.doe@example.com",
-            "role": "USER"
-          },
-          {
-            "id": "user-uuid-2",
-            "name": "Jane Smith",
-            "email": "jane.smith@example.com",
-            "role": "ADMIN"
-          }
-        ]
-        ```
-
----
-
-!!! info "GET /account/{id}"
-    Retrieves a specific user account by its ID.
-
-    === "Response (200 OK)"
-        ```json
-        {
-          "id": "user-uuid",
-          "name": "John Doe",
-          "email": "john.doe@example.com",
-          "role": "USER"
-        }
-        ```
-
----
-
-!!! info "GET /account/whoami"
-    Retrieves the account details of the currently authenticated user, based on the `id-account` header.
-
-    === "Response (200 OK)"
-        ```json
-        {
-          "id": "user-uuid",
-          "name": "John Doe",
-          "email": "john.doe@example.com",
-          "role": "USER"
-        }
-        ```
----
-
-!!! info "DELETE /account/{id}"
-    Deletes a user account by its ID.
-
-    === "Response (204 No Content)"
-        ```
-        (No response body)
-        ```
-
-## File Structure
-```mermaid
-flowchart TD
-    A[account] --> B(pom.xml)
-    A --> C(src)
-    C --> D(main)
-    D --> E(java)
-    E --> F(store)
-    F --> G(account)
-    G --> H(AccountController.java)
-    G --> I(AccountIn.java)
-    G --> J(AccountOut.java)
-    G --> K(Role.java)
+``` tree
+api/
+    account/
+        src/
+            main/
+                java/
+                    store/
+                        account/
+                            AccountController.java
+                            AccountIn.java
+                            AccountOut.java
+        pom.xml
+        Jenkinsfile
 ```
 
-## pom.xml
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.5</version>
-        <relativePath/>
-    </parent>
+??? info "Source"
 
-    <groupId>store</groupId>
-    <artifactId>account</artifactId>
-    <version>1.0.0</version>
+    === "pom.xml"
 
-    <properties>
-        <java.version>21</java.version>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
-        <maven.compiler.proc>full</maven.compiler.proc>
-    </properties>
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account/refs/heads/main/pom.xml"
+        ```
 
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
+    === "Jenkinsfile"
 
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
-        </dependency>
-    </dependencies>
+        ``` { .jenkinsfile .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account/refs/heads/main/Jenkinsfile"
+        ```
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+    === "AccountController"
 
-</project>
+        ``` { .java title='AccountController.java' .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account/refs/heads/main/src/main/java/store/account/AccountController.java"
+        ```
+
+    === "AccountIn"
+
+        ``` { .java title='AccountIn.java' .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account/refs/heads/main/src/main/java/store/account/AccountIn.java"
+        ```
+
+    === "AccountOut"
+
+        ``` { .java title='AccountOut.java' .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account/refs/heads/main/src/main/java/store/account/AccountOut.java"
+        ```
+
+<!-- termynal -->
+
+``` { bash }
+> mvn clean install
+```
+
+## account.service
+
+``` tree
+api/
+    account.service/
+        k8s/
+            k8s.yaml
+        src/
+            main/
+                java/
+                    store/
+                        account/
+                            Account.java
+                            AccountApplication.java
+                            AccountModel.java
+                            AccountParser.java
+                            AccountRepository.java
+                            AccountResource.java
+                            AccountService.java
+                resources/
+                    application.yaml
+                    db/
+                        migration/
+                            V2025.08.29.001__create_schema.sql
+                            V2025.08.29.002__create_table_account.sql
+                            V2025.09.02.001__create_index_email.sql
+        pom.xml
+        Dockerfile
+        Jenkinsfile
+```
+
+??? info "Source"
+
+    === "pom.xml"
+
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/pom.xml"
+        ```
+
+    === "Dockerfile"
+
+        ``` { .dockerfile .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/Dockerfile"
+        ```
+
+    === "Jenkinsfile"
+
+        ``` { .jenkinsfile .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/Jenkinsfile"
+        ```
+
+    === "k8s.yaml"
+
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/k8s/k8s.yaml"
+        ```
+
+    === "application.yaml"
+
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/resources/application.yaml"
+        ```
+
+    === "Account.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/Account.java"
+        ```
+
+    === "AccountApplication.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/AccountApplication.java"
+        ```
+
+    === "AccountModel.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/AccountModel.java"
+        ```
+
+    === "AccountParser.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/AccountParser.java"
+        ```
+
+    === "AccountRepository.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/AccountRepository.java"
+        ```
+
+    === "AccountResource.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/AccountResource.java"
+        ```
+
+    === "AccountService.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/java/store/account/AccountService.java"
+        ```
+
+    === "V2025.08.29.001__create_schema.sql"
+
+        ``` { .sql .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.001__create_schema.sql"
+        ```
+
+    === "V2025.08.29.002__create_table_account.sql"
+
+        ``` { .sql .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.002__create_table_account.sql"
+        ```
+
+    === "V2025.09.02.001__create_index_email.sql"
+
+        ``` { .sql .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/account.service/refs/heads/main/src/main/resources/db/migration/V2025.09.02.001__create_index_email.sql"
+        ```
+
+<!-- termynal -->
+
+``` { bash }
+> mvn clean package spring-boot:run
 ```
