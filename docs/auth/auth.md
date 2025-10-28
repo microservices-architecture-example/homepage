@@ -78,8 +78,8 @@ flowchart LR
         direction TB
         gateway --> account
         gateway --> others
-        gateway e4 @==> auth:::red
-        auth e2 @==> account
+        gateway e4 @==>|""| auth:::red
+        auth e2 @==>|""| account
         account --> db @{ shape: cyl, label: "Database" }
         others --> db
     end

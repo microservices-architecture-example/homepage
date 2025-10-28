@@ -1,194 +1,286 @@
 # Product API
 
-This document details the API for the Product microservice, which is responsible for managing products in the system.
+A **Product API** implementa o CRUD de produtos do domínio `store`, seguindo o mesmo padrão adotado no projeto: **interface** (`product`) e **service** (`product.service`) por trás do **gateway** e protegido por **JWT**.
 
-## Endpoints
-
-The following endpoints are available for interacting with the Product service.
-
-!!! info "POST /product"
-    Creates a new product.
-
-    === "Request"
-        ```json
-        {
-          "name": "Soybean",
-          "price": 25.50,
-          "unit": "Ton"
-        }
-        ```
-
-    === "Response: 201 Created"
-        ```json
-        {
-          "id": "a2a9a74f-8265-4b6c-a43a-7d3c8cb2f6c4",
-          "name": "Soybean",
-          "price": 25.50,
-          "unit": "Ton"
-        }
-        ```
+!!! info "Trusted layer e segurança"
+    Toda requisição externa entra pelo **gateway**.  
+    As rotas `/product/**` são **protegidas**: é obrigatório enviar `Authorization: Bearer <jwt>`.
 
 ---
 
-!!! info "GET /product"
-    Retrieves a list of all products.
+## Visão geral
 
-    === "Response: 200 OK"
-        ```json
-        [
-          {
-            "id": "a2a9a74f-8265-4b6c-a43a-7d3c8cb2f6c4",
-            "name": "Soybean",
-            "price": 25.50,
-            "unit": "Ton"
-          },
-          {
-            "id": "b3b0b85g-9376-5c7d-b54b-8e4d9dc3g7d5",
-            "name": "Corn",
-            "price": 15.75,
-            "unit": "Ton"
-          }
-        ]
-        ```
+- **Interface (`product`)**: define o contrato (DTOs e Feign) consumido por outros módulos/fronts.
+- **Service (`product.service`)**: implementação REST, regras de negócio, persistência (JPA), e migrações (Flyway).
 
----
-
-!!! info "GET /product/{id}"
-    Retrieves a single product by its unique ID.
-
-    === "Response: 200 OK"
-        ```json
-        {
-          "id": "a2a9a74f-8265-4b6c-a43a-7d3c8cb2f6c4",
-          "name": "Soybean",
-          "price": 25.50,
-          "unit": "Ton"
+``` mermaid
+classDiagram
+    namespace product {
+        class ProductController {
+            +create(ProductIn ProductIn): ProductOut
+            +delete(String id): void
+            +findAll(): List<ProductOut>
+            +findById(String id): ProductOut
         }
-        ```
-    === "Response: 404 Not Found"
-        ```json
-        {
-            "timestamp": "2025-10-27T10:30:00.123+00:00",
-            "status": 404,
-            "error": "Not Found",
-            "message": "Product not found!",
-            "path": "/product/c4c1c96h-0487-6d8e-c65c-9f5e0ed4h8e6"
+        class ProductIn {
+            -String name
+            -Double price
+            -String unit
         }
-        ```
+        class ProductOut {
+            -String id
+            -String name
+            -Double price
+            -String unit
+        }
+    }
+    namespace product.service {
+        class ProductResource {
+            +create(ProductIn ProductIn): ProductOut
+            +delete(String id): void
+            +findAll(): List<ProductOut>
+            +findById(String id): ProductOut
+        }
+        class ProductService {
+            +create(ProductIn ProductIn): ProductOut
+            +delete(String id): void
+            +findAll(): List<ProductOut>
+            +findById(String id): ProductOut
+        }
+        class ProductRepository {
+            +create(ProductIn ProductIn): ProductOut
+            +delete(String id): void
+            +findAll(): List<ProductOut>
+            +findById(String id): ProductOut
+        }
+        class Product {
+            -String id
+            -String name
+            -Double price
+            -String unit
+        }
+        class ProductModel {
+            +create(ProductIn ProductIn): ProductOut
+            +delete(String id): void
+            +findAll(): List<ProductOut>
+            +findById(String id): ProductOut
+        }
+    }
+    <<Interface>> ProductController
+    ProductController ..> ProductIn
+    ProductController ..> ProductOut
 
----
-
-!!! info "GET /product/search/{name}"
-    Searches for products with a name containing the provided string.
-
-    === "Response: 200 OK"
-        ```json
-        [
-          {
-            "id": "a2a9a74f-8265-4b6c-a43a-7d3c8cb2f6c4",
-            "name": "Soybean",
-            "price": 25.50,
-            "unit": "Ton"
-          }
-        ]
-        ```
-
----
-
-!!! info "DELETE /product/{id}"
-    Deletes a product by its unique ID.
-
-    === "Response: 204 No Content"
-        (No response body)
-
-## File Structure
-
-```mermaid
-flowchart TD
-    A[product] --> B(pom.xml)
-    A --> C(src)
-    C --> D(main)
-    D --> E(java)
-    E --> F(store)
-    F --> G(product)
-    G --> H(ProductController.java)
-    G --> I(ProductIn.java)
-    G --> J(ProductOut.java)
+    <<Interface>> ProductRepository
+    ProductController <|-- ProductResource
+    ProductResource *-- ProductService
+    ProductService *-- ProductRepository
+    ProductService ..> Product
+    ProductService ..> ProductModel
+    ProductRepository ..> ProductModel
 ```
 
-## Source Code
+## Estrutura da requisição
 
-### ProductController.java
-
-```java
-package store.product;
-
-import java.util.List;
-
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-
-@FeignClient(name = "product", url = "http://product:8080")
-public interface ProductController {
-    
-    @PostMapping("/product")
-    public ResponseEntity<ProductOut> create(
-        @RequestBody ProductIn in
-    );
-
-    @GetMapping("/product/{id}")
-    public ResponseEntity<ProductOut> findById(
-        @PathVariable("id") String id
-    );
-
-    @GetMapping("/product")
-    public ResponseEntity<List<ProductOut>> findAll();
-
-    @GetMapping("/product/search/{name}")
-    public ResponseEntity<List<ProductOut>> findByName(
-        @PathVariable("name") String name
-    );
-
-    @DeleteMapping("/product/{id}")
-    public ResponseEntity<Void> delete(
-        @PathVariable("id") String id
-    );
-
-}
+``` mermaid
+flowchart LR
+    subgraph api [Trusted Layer]
+        direction TB
+        gateway --> account
+        gateway --> auth
+        account --> db@{ shape: cyl, label: "Database" }
+        auth --> account
+        gateway e5@==>|""| product:::red
+        product e2@==>|""| db
+    end
+    internet e1@==>|request| gateway
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e5@{ animate: true }
+    classDef red fill:#fcc
+    click product "#product-api" "Product API"
 ```
 
-### ProductIn.java
+## Product
 
-```java
-package store.product;
 
-import lombok.Builder;
-
-@Builder
-public record ProductIn(
-    String name,
-    Double price,
-    String unit
-) {}
+``` tree
+api/
+    product/
+        src/
+            main/
+                java/
+                    store/
+                        product/
+                            ProductController.java
+                            ProductIn.java
+                            ProductOut.java
+        pom.xml
+        Jenkinsfile
 ```
 
-### ProductOut.java
+??? info "Source"
 
-```java
-package store.product;
+    === "pom.xml"
 
-import lombok.Builder;
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product/refs/heads/main/pom.xml"
+        ```
 
-@Builder
-public record ProductOut(
-    String id,
-    String name,
-    Double price,
-    String unit
-) {}
+    === "Jenkinsfile"
+
+        ``` { .jenkinsfile .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product/refs/heads/main/Jenkinsfile"
+        ```
+
+    === "ProductController"
+
+        ``` { .java title='ProductController.java' .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product/refs/heads/main/src/main/java/store/product/ProductController.java"
+        ```
+
+    === "ProductIn"
+
+        ``` { .java title='ProductIn.java' .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product/refs/heads/main/src/main/java/store/product/ProductIn.java"
+        ```
+
+    === "ProductOut"
+
+        ``` { .java title='ProductOut.java' .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product/refs/heads/main/src/main/java/store/product/ProductOut.java"
+        ```
+
+<!-- termynal -->
+
+``` { bash }
+> mvn clean install
+```
+
+## product.service
+
+``` tree
+api/
+    product.service/
+        k8s/
+            k8s.yaml
+        src/
+            main/
+                java/
+                    store/
+                        product/
+                            Product.java
+                            ProductApplication.java
+                            ProductModel.java
+                            ProductParser.java
+                            ProductRepository.java
+                            ProductResource.java
+                            ProductService.java
+                            RedisCacheConfig.java
+                resources/
+                    application.yaml
+                    db/
+                        migration/
+                            V2025.08.29.001__create_schema.sql
+                            V2025.08.29.002__create_table_product.sql
+        pom.xml
+        Dockerfile
+        Jenkinsfile
+```
+
+??? info "Source"
+
+    === "pom.xml"
+
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/pom.xml"
+        ```
+
+    === "Dockerfile"
+
+        ``` { .dockerfile .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/Dockerfile"
+        ```
+
+    === "Jenkinsfile"
+
+        ``` { .jenkinsfile .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/Jenkinsfile"
+        ```
+
+    === "k8s.yaml"
+
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/k8s/k8s.yaml"
+        ```
+
+    === "application.yaml"
+
+        ``` { .yaml .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/resources/application.yaml"
+        ```
+
+    === "Product.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/Product.java"
+        ```
+
+    === "ProductApplication.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/ProductApplication.java"
+        ```
+
+    === "ProductModel.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/ProductModel.java"
+        ```
+
+    === "ProductParser.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/ProductParser.java"
+        ```
+
+    === "ProductRepository.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/ProductRepository.java"
+        ```
+
+    === "ProductResource.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/ProductResource.java"
+        ```
+
+    === "ProductService.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/ProductService.java"
+        ```
+
+    === "RedisCacheConfig.java"
+
+        ``` { .java .copy .select linenums='1' }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/java/store/product/RedisCacheConfig.java"
+        ```
+
+    === "V2025.08.29.001__create_schema.sql"
+
+        ``` { .sql .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.001__create_schema.sql"
+        ```
+
+    === "V2025.08.29.002__create_table_product.sql"
+
+        ``` { .sql .copy .select linenums="1" }
+        --8<-- "https://raw.githubusercontent.com/microservices-architecture-example/product.service/refs/heads/main/src/main/resources/db/migration/V2025.08.29.002__create_table_product.sql"
+        ```
+
+<!-- termynal -->
+
+``` { bash }
+> mvn clean package spring-boot:run
 ```
